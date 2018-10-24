@@ -44,6 +44,7 @@ function initGame() {
 					winner = aligned(this.board[i]);
 				if (winner == 0)
 					winner = aligned(this.board.map(row => row[i]));
+				if (winner != 0) return winner;
 				for (let k = 0; k < 13; k++) {
 					let vect1 = [], vect2 = [];
 					for (let row = 5; row >= 0; row--) {
@@ -52,11 +53,10 @@ function initGame() {
 						if (col2 >= 0 && col2 < 7) vect2.push(this.board[row][col2]);
 					}
 					winner = aligned(vect1);
-					if (winner != 0) break;
+					if (winner != 0) return winner;
 					winner = aligned(vect2);
-					if (winner != 0) break;
+					if (winner != 0) return winner;
 				}
-				if (winner != 0) return winner;
 			}
 			return 0;
 		},
@@ -76,7 +76,7 @@ function initGame() {
 function aligned(vect, size=4) {
 	let regex = new RegExp("([^0])\\1{" + (size - 1) + ",}");
 	match = regex.exec(vect.join(""));
-	if (match) return parseInt(match[1]);
+	if (match != null) return parseInt(match[1]);
 	return 0;
 }
 
