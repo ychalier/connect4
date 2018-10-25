@@ -22,7 +22,7 @@ function train(filename) {
 		node.children.map(process);
 	}
 	process(tree);
-	let clf = learn.MLPClassifier(threshold=.1);
+	let clf = learn.MLPClassifier();
 	fs.writeFileSync("clf.json", JSON.stringify(clf));
 	clf.fit(X, y);
 	return clf;
@@ -32,7 +32,7 @@ function computerMove(clf, game) {
 	let state = game.serial().split(",").map(x => parseInt(x));
 	let scores = clf.predict(state);
 	console.log("\nAI scores: " + scores);
-	let winner = game.play(scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1];
+	let winner = game.play(scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1]);
 	return {
 		game: game,
 		winner: winner,
@@ -56,7 +56,7 @@ function checkGameState(winner, game) {
 	}
 }
 
-// train(process.argv[2]);
+train(process.argv[2]);
 
 
 let clf = learn.MLPClassifier();

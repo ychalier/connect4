@@ -82,8 +82,8 @@ function test(layers, Xrow) {
 function MLPClassifier(inputSize=42, hiddenSize=100, outputSize=7) {
 	return {
 		layers: architecture(inputSize, hiddenSize, outputSize),
-		fit: function(X, y, threshold=.01) {
-			this.layers = backtrack(this.layers, X, y, threshold);
+		fit: function(X, y, eta=.1, threshold=.01, maxIter=100) {
+			this.layers = backtrack(this.layers, X, y, eta, threshold, maxIter);
 			return this;
 		},
 		predict: function(X) {
