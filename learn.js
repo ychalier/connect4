@@ -1,88 +1,93 @@
-const engine = require("./engine.js");
+function f(x) {
+	return 1/(1+Math.exp(-x));
+}
 
-function initTree() {
-	let tree = {
-		state: root(),
-		children: [],
-		parent: null,
-		w: 0,
-		n: 0,
-		final: false,
+function randMatrix(n, p) {
+	let m = [];
+	for (let i = 0; i < n; i++) {
+		m.push([]);
+		for (let j = 0; j < p; j++) m[i].push(Math.random() * 2 - 1);
+	}
+	return m;
+}
+
+function dot(a, x, p) {
+	let y = [];
+	for (let row = 0; row < a.length; row++) {
+		y.push(0);
+		for (let col = 0; col < a[0].length - 1; col++) y[row] += a[row][col] * (p != null ? x[p][col] : x[col]);
+		y[row] += a[row][a[0].length - 1];
+	}
+	return y;
+}
+
+function architecture(inputSize=42, hiddenSize=100, outputSize=7) {
+	let layers = {
+		hidden: randMatrix(hiddenSize, inputSize + 1),
+		output: randMatrix(outputSize, hiddenSize + 1),
 	};
-	return tree;
+	return layers;
 }
 
-function createGame(string) {
-	let unravelled = string.split(",");
-	let game = engine.initGame();
-	game.player = 1 + (string.split("1").length + string.split("2").length) % 2;
-	game.board = [];
-	while (unravelled.length) game.board.push(unravelled.splice(0, 7).map(x => parseInt(x)));
-	return game;
+function forward(layers, X, p) {
+	let fNetH = dot(layers.hidden, X, p).map(f);
+	return {
+		fNetH: fNetH,
+		fNetO: dot(layers.output, fNetH).map(f),
+	};
 }
 
-function root() {
-	string = '0';
-	for (let i = 0; i < 41; i++) string += ',0';
-	return string;
-}
-
-function exploration(node, c=1.41421356237) {
-	let w = node.w, n = node.n + 1, N = node.parent.n;
-	return w/n + c*Math.sqrt(Math.log(N)/n);
-}
-
-function learn(tree, n) {
-	for (let step = 0; step < n; step++) {
-		let node = tree;
-		while (node.n > 0 && !node.final && node.children.length > 0) {
-			scores = node.children.map(exploration);
-			node = node.children[scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1]];
-		}
-		let game = createGame(node.state);
-		let coups = game.coups();
-		for (let c = 0; c < coups.length; c++) {
-			let winner = game.play(coups[c]);
-			node.children.push({
-				state: game.serial(),
-				children: [],
-				parent: node,
-				w: 0,
-				n: 0,
-				final: winner != 0 || game.full(),
-			})
-			game.undo(coups[c]);
-		}
-		let child = node.children[Math.floor(Math.random() * node.children.length)];
-		let outcome = finish(createGame(child.state));
-		while (true) {
-			child.n++;
-			if (outcome == 1) child.w++;
-			if (child.parent) {
-				child = child.parent;
-			} else {
-				break;
+function backtrack(layers, X, y, eta=.1, threshold=.001) {
+	let inputSize = layers.hidden[0].length - 1;
+	let hiddenSize = layers.hidden.length;
+	let outputSize = layers.output.length;
+	let squaredError = threshold * 2;
+	while (squaredError > threshold) {
+		squaredError = 0;
+		for (let p = 0; p < X.length; p++) {
+			let fwd = forward(layers, X, p);
+			let deltaO = [];
+			for (let k = 0; k < outputSize; k++) {
+				let error = y[p][k] - fwd.fNetO[k];
+				deltaO.push(error * fwd.fNetO[k] * (1 - fwd.fNetO[k]));
+				squaredError += error * error;
+			}
+			let deltaH = [];
+			for (let j = 0; j < hiddenSize; j++) {
+				let sum = 0;
+				for (let k = 0; k < outputSize; k++) sum += deltaO[k] * layers.output[k][j];
+				deltaH.push(fwd.fNetH[j] * (1 - fwd.fNetH[j]) * sum);
+			}
+			for (let k = 0; k < outputSize; k++) {
+				for (let j = 0; j < hiddenSize; j++) layers.output[k][j] += eta * deltaO[k] * fwd.fNetH[j];
+				layers.output[k][hiddenSize] += eta * deltaO[k];
+			}
+			for (let j = 0; j < hiddenSize; j++) {
+				for (let i = 0; i < inputSize; i++) layers.hidden[j][i] += eta * deltaH[j] * X[p][i];
+				layers.hidden[j][inputSize] += eta * deltaH[j];
 			}
 		}
+		squaredError /= X.length;
+		console.log("Squared error = " +  squaredError);
 	}
-	return tree;
+	return layers;
 }
 
-function finish(game) {
-	let winner = 0;
-	while (winner == 0 && !game.full()) {
-		let coups = game.coups();
-		winner = game.play(coups[Math.floor(Math.random() * coups.length)]);
+function test(layers, Xrow) {
+	return forward(layers, [Xrow], 0).fNetO;
+}
+
+function MLPClassifier(inputSize=42, hiddenSize=100, outputSize=7) {
+	return {
+		layers: architecture(inputSize, hiddenSize, outputSize),
+		fit: function(X, y) {
+			this.layers = backtrack(this.layers, X, y);
+			return this;
+		},
+		predict: function(X) {
+			return test(this.layers, X);
+		}
 	}
-	return winner;
 }
 
-function serialTree(tree) {
-	return JSON.stringify(tree, (key, value) => {
-			if (key == 'parent' && value) return value.state;
-			else return value;
-		});
-}
-
-let tree = initTree();
-console.log(serialTree(learn(tree, parseInt(process.argv[2]))));
+module.exports = { MLPClassifier };
