@@ -2,7 +2,7 @@
 
 A connect4 IA in JavaScript using reinforcement learning using **Monte Carlo Tree Search** and a **Multilayered Perceptron**.
 
-## How it works?
+## How does it works?
 
 It runs one **NodeJS** (exactly on v8.11.4). **No module needeed!**
 
