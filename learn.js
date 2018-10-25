@@ -37,12 +37,14 @@ function forward(layers, X, p) {
 	};
 }
 
-function backtrack(layers, X, y, eta=.1, threshold=.001) {
+function backtrack(layers, X, y, eta=.1, threshold=.001, maxIter=100) {
 	let inputSize = layers.hidden[0].length - 1;
 	let hiddenSize = layers.hidden.length;
 	let outputSize = layers.output.length;
 	let squaredError = threshold * 2;
-	while (squaredError > threshold) {
+	let iter = 0;
+	while (squaredError > threshold && (maxIter == null || iter < maxIter)) {
+		iter++;
 		squaredError = 0;
 		for (let p = 0; p < X.length; p++) {
 			let fwd = forward(layers, X, p);
@@ -80,8 +82,8 @@ function test(layers, Xrow) {
 function MLPClassifier(inputSize=42, hiddenSize=100, outputSize=7) {
 	return {
 		layers: architecture(inputSize, hiddenSize, outputSize),
-		fit: function(X, y) {
-			this.layers = backtrack(this.layers, X, y);
+		fit: function(X, y, threshold=.01) {
+			this.layers = backtrack(this.layers, X, y, threshold);
 			return this;
 		},
 		predict: function(X) {

@@ -1,32 +1,38 @@
 const engine = require("./engine.js");
+const learn = require("./learn.js");
 const fs = require("fs");
 
-function loadTree(filename) {
-	let root = JSON.parse(fs.readFileSync(filename, 'utf8'));
-	let table = {};
+function train(filename) {
+	let tree = JSON.parse(fs.readFileSync(filename, 'utf8'));
+	let X = [], y = [];
 	let process = (node) => {
-		if (node.n) {
-			table[node.state] = { p:node.w / node.n, children:[] };
-			if (node.parent in table) table[node.parent].children.push(node);
+		X.push([]);
+		let arr = node.state.split(",");
+		for (let i = 0; i < 42; i++) {
+			X[X.length - 1].push(parseInt(arr[i]));
 		}
-		for (let i = 0; i < node.children.length; i++) {
-			process(node.children[i]);
+		y.push([]);
+		for (let coup = 0; coup < 7; coup++) {
+			y[y.length - 1].push(0);
+			for (let c = 0; c < node.children.length; c++) {
+				if (node.children[c].coup == coup && node.children[c].n)
+					y[y.length - 1][coup] = node.children[c].w / node.children[c].n;
+			}
 		}
+		node.children.map(process);
 	}
-	process(root);
-	return table;
+	process(tree);
+	let clf = learn.MLPClassifier(threshold=.1);
+	fs.writeFileSync("clf.json", JSON.stringify(clf));
+	clf.fit(X, y);
+	return clf;
 }
 
-function computerMove(table, game) {
-	let coups = game.coups();
-	let scores = coups.map((coup) => {
-			game.play(coup);
-			let state = game.serial();
-			game.undo(coup);
-			return (state in table ? table[state].p : 0);
-		});
+function computerMove(clf, game) {
+	let state = game.serial().split(",").map(x => parseInt(x));
+	let scores = clf.predict(state);
 	console.log("\nAI scores: " + scores);
-	let winner = game.play(coups[scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1]]);
+	let winner = game.play(scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1];
 	return {
 		game: game,
 		winner: winner,
@@ -50,8 +56,11 @@ function checkGameState(winner, game) {
 	}
 }
 
+// train(process.argv[2]);
 
-let table = loadTree(process.argv[2]);
+
+let clf = learn.MLPClassifier();
+clf.layers = JSON.parse(fs.readFileSync("clf.json", "utf-8")).layers;
 let game = engine.initGame();
 let stdin = process.openStdin();
 stdin.addListener("data", (d) => {
@@ -59,7 +68,7 @@ stdin.addListener("data", (d) => {
 	if (game.coups().includes(col)) {
 		let winner = game.play(col);
 		checkGameState(winner, game);
-		let output = computerMove(table, game);
+		let output = computerMove(clf, game);
 		checkGameState(output.winner, output.game);
 		game = output.game;
 		display(game);
@@ -68,5 +77,6 @@ stdin.addListener("data", (d) => {
 	}
 });
 
-computerMove(table, game);
+computerMove(clf, game);
 display(game);
+
