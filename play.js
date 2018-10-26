@@ -9,7 +9,7 @@ function train(filename) {
 		X.push([]);
 		let arr = node.state.split(",");
 		for (let i = 0; i < 42; i++) {
-			X[X.length - 1].push(parseInt(arr[i]));
+			X[X.length - 1].push((parseInt(arr[i]) + 1) % 3 - 1);
 		}
 		y.push([]);
 		for (let coup = 0; coup < 7; coup++) {
@@ -29,7 +29,7 @@ function train(filename) {
 }
 
 function computerMove(clf, game) {
-	let state = game.serial().split(",").map(x => parseInt(x));
+	let state = game.serial().split(",").map(x => (parseInt(x) + 1) % 3 - 1);
 	let scores = clf.predict(state);
 	console.log("\nAI scores: " + scores);
 	let winner = game.play(scores.map((x, i) => [x, i]).reduce((r, a) => (a[0] > r[0]? a:r))[1]);
